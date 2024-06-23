@@ -1,46 +1,47 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <tabulate/table.hpp>
 
-using namespace tabulate;
-
-void addColorRow(Table& table, const std::vector<std::string>& codes, const std::vector<std::string>& colors, const std::string& type) {
-    Table::Row_t row_data;
+void addColorRow(std::vector<std::vector<std::string>>& table, const std::vector<std::string>& codes, const std::string& type, bool isBackground) {
+    std::vector<std::string> row_data;
     row_data.push_back(type);
 
-    for (size_t i = 0; i < codes.size(); ++i) {
-        std::string color_code = "\e[" + codes[i] + "m";
+    for (const auto& code : codes) {
+        std::string color_code = "\e[" + code + "m";
         std::string reset_code = "\e[0m";
 
-        // Adjust text color to black for bright backgrounds (codes ending in 0-7)
-        if (codes[i].find("10") == 1 || codes[i].find("10") == 2) {
-            color_code = "\e[1;90;" + codes[i].substr(1) + "m";  // Set text to black for bright backgrounds
+        if (isBackground) {
+            if (code == "40" || code == "0;100" || code == "0;101" || code == "41" || code == "45") {
+                color_code = "\e[" + code + ";97m";
+            } else {
+                color_code = "\e[" + code + ";90m";
+            }
+        } else if (code == "0;30" || code == "1;30" || code == "4;30") {
+            color_code = "\e[" + code + ";100m";
         }
 
-        row_data.push_back(color_code + colors[i] + " (" + codes[i] + ")" + reset_code);
+        row_data.push_back(color_code + code + reset_code);
     }
 
-    table.add_row(row_data);
+    table.push_back(row_data);
+}
+
+void printTable(const std::vector<std::vector<std::string>>& table) {
+    for (const auto& row : table) {
+        for (const auto& cell : row) {
+            std::cout << cell << "\t";
+        }
+        std::cout << std::endl;
+    }
 }
 
 int main() {
-    Table table;
-
-    // Setting up table properties
-    table.format()
-        .font_style({FontStyle::bold})
-        .border_top("")
-        .border_bottom("")
-        .border_left("")
-        .border_right("")
-        .column_separator("");
+    std::vector<std::vector<std::string>> table;
 
     // Header row
-    table.add_row({"Color Type", "Black", "Red", "Green", "Yellow", "Blue", "Purple", "Cyan", "White"});
+    const std::vector<std::string> color_names = {"Color Type", "Black", "Red", "Green", "Yellow", "Blue", "Purple", "Cyan", "White"};
+    table.push_back(color_names);
 
-    // Colors and Codes
-    const std::vector<std::string> colors = {"Black", "Red", "Green", "Yellow", "Blue", "Purple", "Cyan", "White"};
     const std::vector<std::string> regularCodes = {"0;30", "0;31", "0;32", "0;33", "0;34", "0;35", "0;36", "0;37"};
     const std::vector<std::string> boldCodes = {"1;30", "1;31", "1;32", "1;33", "1;34", "1;35", "1;36", "1;37"};
     const std::vector<std::string> underlineCodes = {"4;30", "4;31", "4;32", "4;33", "4;34", "4;35", "4;36", "4;37"};
@@ -49,17 +50,15 @@ int main() {
     const std::vector<std::string> boldHighIntensityCodes = {"1;90", "1;91", "1;92", "1;93", "1;94", "1;95", "1;96", "1;97"};
     const std::vector<std::string> highIntensityBackgroundCodes = {"0;100", "0;101", "0;102", "0;103", "0;104", "0;105", "0;106", "0;107"};
 
-    // Adding rows for each color type
-    addColorRow(table, regularCodes, colors, "Regular");
-    addColorRow(table, boldCodes, colors, "Bold");
-    addColorRow(table, underlineCodes, colors, "Underline");
-    addColorRow(table, backgroundCodes, colors, "Background");
-    addColorRow(table, highIntensityCodes, colors, "High Intensity");
-    addColorRow(table, boldHighIntensityCodes, colors, "Bold High Intensity");
-    addColorRow(table, highIntensityBackgroundCodes, colors, "High Intensity Background");
+    addColorRow(table, regularCodes, "Regular\t", false);
+    addColorRow(table, boldCodes, "Bold\t", false);
+    addColorRow(table, underlineCodes, "Underline", false);
+    addColorRow(table, backgroundCodes, "Background", true);
+    addColorRow(table, highIntensityCodes, "High Intensity", false);
+    addColorRow(table, boldHighIntensityCodes, "Bold High Int", false);
+    addColorRow(table, highIntensityBackgroundCodes, "High Int Back", true);
 
-    // Print the table
-    std::cout << table << std::endl;
+    printTable(table);
 
     return 0;
 }
