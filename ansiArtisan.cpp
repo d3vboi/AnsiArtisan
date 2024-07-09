@@ -1,23 +1,26 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cstring>
+#include <termios.h>
+#include <unistd.h>
 
 void addColorRow(std::vector<std::vector<std::string>>& table, const std::vector<std::string>& codes, const std::string& type, bool isBackground) {
     std::vector<std::string> row_data;
     row_data.push_back(type);
 
     for (const auto& code : codes) {
-        std::string color_code = "\e[" + code + "m";
-        std::string reset_code = "\e[0m";
+        std::string color_code = "\033[" + code + "m";
+        std::string reset_code = "\033[0m";
 
         if (isBackground) {
             if (code == "40" || code == "0;100" || code == "0;101" || code == "41" || code == "45") {
-                color_code = "\e[" + code + ";97m";
+                color_code = "\033[" + code + ";97m";
             } else {
-                color_code = "\e[" + code + ";90m";
+                color_code = "\033[" + code + ";90m";
             }
         } else if (code == "0;30" || code == "1;30" || code == "4;30") {
-            color_code = "\e[" + code + ";100m";
+            color_code = "\033[" + code + ";100m";
         }
 
         row_data.push_back(color_code + code + reset_code);
@@ -35,7 +38,7 @@ void printTable(const std::vector<std::vector<std::string>>& table) {
     }
 }
 
-int main() {
+void displayTable() {
     std::vector<std::vector<std::string>> table;
 
     // Header row
@@ -59,6 +62,89 @@ int main() {
     addColorRow(table, highIntensityBackgroundCodes, "High Int Back", true);
 
     printTable(table);
+    std::cout << "Example: " << "\033[1;31m\\033[1;31mThis Is Bold Red!\\033[0m\033[0m" << std::endl;
+}
 
+void setInputMode() {
+    struct termios t;
+    tcgetattr(STDIN_FILENO, &t);
+    t.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &t);
+}
+
+void resetInputMode() {
+    struct termios t;
+    tcgetattr(STDIN_FILENO, &t);
+    t.c_lflag |= (ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &t);
+}
+
+void interactiveMode() {
+    setInputMode();
+
+    int fgColorIndex = 0;
+    int bgColorIndex = 0;
+    bool isBold = false;
+    bool isFgHighIntensity = false;
+    bool isBgHighIntensity = false;
+
+    const std::vector<std::string> colorCodes = {"30", "31", "32", "33", "34", "35", "36", "37"};
+    const std::vector<std::string> highIntensityColorCodes = {"90", "91", "92", "93", "94", "95", "96", "97"};
+    const std::vector<std::string> backgroundColorCodes = {"40", "41", "42", "43", "44", "45", "46", "47"};
+    const std::vector<std::string> highIntensityBackgroundColorCodes = {"100", "101", "102", "103", "104", "105", "106", "107"};
+
+    while (true) {
+        std::cout << "\033[H\033[J"; // Clear screen
+        displayTable();
+
+        std::string fgCode = isFgHighIntensity ? highIntensityColorCodes[fgColorIndex] : colorCodes[fgColorIndex];
+        std::string bgCode = isBgHighIntensity ? highIntensityBackgroundColorCodes[bgColorIndex] : backgroundColorCodes[bgColorIndex];
+        std::string boldCode = isBold ? "1" : "0";
+
+        std::string ansiSequence = "\033[" + boldCode + ";" + fgCode + ";" + bgCode + "m";
+        std::cout << "Current ANSI Sequence: " << ansiSequence << "\\033[" << boldCode << ";" << fgCode << ";" << bgCode << "m" << "\\033[0m" << std::endl;
+        std::cout << ansiSequence << "Sample Text\033[0m" << std::endl;
+
+        std::cout << "\nUse 'w'/'s' to change foreground color, 'a'/'d' to change background color.\n";
+        std::cout << "'b' to toggle bold, 'f' to toggle foreground high intensity, 'g' to toggle background high intensity.\n";
+        std::cout << "'q' to quit.\n";
+
+        char c;
+        read(STDIN_FILENO, &c, 1);
+
+        if (c == 'w') {
+            fgColorIndex = (fgColorIndex + 1) % colorCodes.size();
+        } else if (c == 's') {
+            fgColorIndex = (fgColorIndex - 1 + colorCodes.size()) % colorCodes.size();
+        } else if (c == 'a') {
+            bgColorIndex = (bgColorIndex - 1 + backgroundColorCodes.size()) % backgroundColorCodes.size();
+        } else if (c == 'd') {
+            bgColorIndex = (bgColorIndex + 1) % backgroundColorCodes.size();
+        } else if (c == 'b') {
+            isBold = !isBold;
+        } else if (c == 'f') {
+            isFgHighIntensity = !isFgHighIntensity;
+        } else if (c == 'g') {
+            isBgHighIntensity = !isBgHighIntensity;
+        } else if (c == 'q') {
+            break;
+        }
+    }
+
+    resetInputMode();
+}
+
+int main(int argc, char *argv[]) {
+    bool interactive = false;
+    for (int i = 0; i < argc; i++) {
+        if (strcmp(argv[i],"-i") == 0 || strcmp(argv[i], "--interactive") == 0) {
+            interactive = true;
+        }
+    }
+    if (interactive) {
+        interactiveMode();
+    } else {
+        displayTable();
+    }
     return 0;
 }
