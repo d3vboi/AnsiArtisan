@@ -79,11 +79,19 @@ void resetInputMode() {
     tcsetattr(STDIN_FILENO, TCSANOW, &t);
 }
 
+void printColorOptions(const std::vector<std::string>& codes, const std::vector<std::string>& names) {
+    for (size_t i = 0; i < codes.size(); ++i) {
+        std::cout << "\033[" + codes[i] + "m" << names[i] << "\033[0m ";
+    }
+    std::cout << std::endl;
+}
+
 void interactiveMode() {
     setInputMode();
 
     int fgColorIndex = 0;
     int bgColorIndex = 0;
+    int selectedSetting = 0;
     bool isBold = false;
     bool isFgHighIntensity = false;
     bool isBgHighIntensity = false;
@@ -92,6 +100,7 @@ void interactiveMode() {
     const std::vector<std::string> highIntensityColorCodes = {"90", "91", "92", "93", "94", "95", "96", "97"};
     const std::vector<std::string> backgroundColorCodes = {"40", "41", "42", "43", "44", "45", "46", "47"};
     const std::vector<std::string> highIntensityBackgroundColorCodes = {"100", "101", "102", "103", "104", "105", "106", "107"};
+    const std::vector<std::string> colorNames = {"Black", "Red", "Green", "Yellow", "Blue", "Purple", "Cyan", "White"};
 
     while (true) {
         std::cout << "\033[H\033[J"; // Clear screen
@@ -105,34 +114,83 @@ void interactiveMode() {
         std::cout << "Current ANSI Sequence: " << ansiSequence << "\\033[" << boldCode << ";" << fgCode << ";" << bgCode << "m" << "\\033[0m" << std::endl;
         std::cout << ansiSequence << "Sample Text\033[0m" << std::endl;
 
-        std::cout << "\nUse 'w'/'s' to change foreground color, 'a'/'d' to change background color.\n";
-        std::cout << "'b' to toggle bold, 'f' to toggle foreground high intensity, 'g' to toggle background high intensity.\n";
+        std::cout << "\nSettings:\n";
+        std::cout << (selectedSetting == 0 ? "\033[1;32m" : "") << "1. Foreground Color: " << colorNames[fgColorIndex] << "\033[0m" << std::endl;
+        if (selectedSetting == 0) {
+            // Print foreground options with adjusted background color for black
+            for (size_t i = 0; i < colorCodes.size(); ++i) {
+                if (colorCodes[i] == "30") {
+                    std::cout << "\033[" + colorCodes[i] + ";41m" << colorNames[i] << "\033[0m ";
+                } else {
+                    std::cout << "\033[" + colorCodes[i] + "m" << colorNames[i] << "\033[0m ";
+                }
+            }
+            std::cout << std::endl;
+        }
+        std::cout << (selectedSetting == 1 ? "\033[1;32m" : "") << "2. Background Color: " << colorNames[bgColorIndex] << "\033[0m" << std::endl;
+        if (selectedSetting == 1) {
+            // Print background options with adjusted text color for green, yellow, and cyan backgrounds
+            for (size_t i = 0; i < backgroundColorCodes.size(); ++i) {
+                if (backgroundColorCodes[i] == "42" || backgroundColorCodes[i] == "43" || backgroundColorCodes[i] == "46" ||
+                    backgroundColorCodes[i] == "0;102" || backgroundColorCodes[i] == "0;103" || backgroundColorCodes[i] == "0;106") {
+                    std::cout << "\033[" + backgroundColorCodes[i] + ";30m" << colorNames[i] << "\033[0m ";
+                } else {
+                    std::cout << "\033[" + backgroundColorCodes[i] + "m" << colorNames[i] << "\033[0m ";
+                }
+            }
+            std::cout << std::endl;
+        }
+        std::cout << (selectedSetting == 2 ? "\033[1;32m" : "") << "3. Bold: " << (isBold ? "On" : "Off") << "\033[0m" << std::endl;
+        std::cout << (selectedSetting == 3 ? "\033[1;32m" : "") << "4. Foreground High Intensity: " << (isFgHighIntensity ? "On" : "Off") << "\033[0m" << std::endl;
+        std::cout << (selectedSetting == 4 ? "\033[1;32m" : "") << "5. Background High Intensity: " << (isBgHighIntensity ? "On" : "Off") << "\033[0m" << std::endl;
+
+        std::cout << "\nUse 'w/s' to select setting, 'a/d' to change value.\n";
         std::cout << "'q' to quit.\n";
 
         char c;
         read(STDIN_FILENO, &c, 1);
 
-        if (c == 'w') {
-            fgColorIndex = (fgColorIndex + 1) % colorCodes.size();
-        } else if (c == 's') {
-            fgColorIndex = (fgColorIndex - 1 + colorCodes.size()) % colorCodes.size();
-        } else if (c == 'a') {
-            bgColorIndex = (bgColorIndex - 1 + backgroundColorCodes.size()) % backgroundColorCodes.size();
-        } else if (c == 'd') {
-            bgColorIndex = (bgColorIndex + 1) % backgroundColorCodes.size();
-        } else if (c == 'b') {
-            isBold = !isBold;
-        } else if (c == 'f') {
-            isFgHighIntensity = !isFgHighIntensity;
-        } else if (c == 'g') {
-            isBgHighIntensity = !isBgHighIntensity;
-        } else if (c == 'q') {
+        switch (c) {
+          case 'w':
+            selectedSetting = (selectedSetting - 1 + 5) % 5;
             break;
+          case 's':
+            selectedSetting = (selectedSetting + 1) % 5;
+            break;
+          case 'a':
+            if (selectedSetting == 0) {
+                fgColorIndex = (fgColorIndex - 1 + colorCodes.size()) % colorCodes.size();
+            } else if (selectedSetting == 1) {
+                bgColorIndex = (bgColorIndex - 1 + backgroundColorCodes.size()) % backgroundColorCodes.size();
+            } else if (selectedSetting == 2) {
+              isBold = !isBold;
+            } else if (selectedSetting == 3) {
+              isFgHighIntensity = !isFgHighIntensity;
+            } else if (selectedSetting == 4) {
+                isBgHighIntensity = !isBgHighIntensity;
+            }
+            break;
+          case 'd':
+            if (selectedSetting == 0) {
+                fgColorIndex = (fgColorIndex + 1) % colorCodes.size();
+            } else if (selectedSetting == 1) {
+                bgColorIndex = (bgColorIndex + 1) % backgroundColorCodes.size();
+            } else if (selectedSetting == 2) {
+              isBold = !isBold;
+            } else if (selectedSetting == 3) {
+              isFgHighIntensity = !isFgHighIntensity;
+            } else if (selectedSetting == 4) {
+                isBgHighIntensity = !isBgHighIntensity;
+            }
+            break;
+          case 'q':
+            resetInputMode();
+            return;
         }
     }
-
-    resetInputMode();
 }
+
+
 
 int main(int argc, char *argv[]) {
     bool interactive = false;
