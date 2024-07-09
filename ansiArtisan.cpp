@@ -104,7 +104,7 @@ void interactiveMode() {
 
     while (true) {
         std::cout << "\033[H\033[J"; // Clear screen
-        displayTable();
+        // displayTable();
 
         std::string fgCode = isFgHighIntensity ? highIntensityColorCodes[fgColorIndex] : colorCodes[fgColorIndex];
         std::string bgCode = isBgHighIntensity ? highIntensityBackgroundColorCodes[bgColorIndex] : backgroundColorCodes[bgColorIndex];
